@@ -1,4 +1,3 @@
-> Denis:
 import streamlit as st
 import feedparser
 import requests
@@ -118,4 +117,5 @@ with tab2:
 if st.button("🔄 Обновить сейчас"):
     st.session_state.last_update = 0
     st.rerun()
+
 
