@@ -10,7 +10,7 @@ st.set_page_config(page_title="SciFlow", layout="wide", page_icon="🧪")
 
 TELEGRAM_TOKEN = "8177168221:AAHT1oULEWi7_0-Wt9vMGQJVInZNEZq7PDA"
 TELEGRAM_CHAT_ID = "133660500"
-PASSWORD = "наука2026"                    # ← Поменяй обязательно!
+PASSWORD = "1"                    # ← Поменяй обязательно!
 
 MSK = timezone(timedelta(hours=3))
 NEWS_PER_SOURCE = 5                       # ← Теперь 5 новостей
