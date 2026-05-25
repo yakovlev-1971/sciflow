@@ -1,4 +1,3 @@
-```python
 import streamlit as st
 import feedparser
 import requests
@@ -174,5 +173,3 @@ with tab2:
                 st.markdown(f"[{item['title']}]({item['link']})")
 
 st.caption("SciFlow • Однофайловая версия")
-```
-
