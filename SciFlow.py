@@ -9,7 +9,7 @@ st.set_page_config(page_title="SciFlow", layout="wide", page_icon="🧪")
 
 TELEGRAM_TOKEN = "8177168221:AAHT1oULEWi7_0-Wt9vMGQJVInZNEZq7PDA"
 TELEGRAM_CHAT_ID = "133660500"
-PASSWORD = "1"
+PASSWORD = "1024"
 
 MSK = timezone(timedelta(hours=3))
 
@@ -87,7 +87,7 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 
 if not st.session_state.authenticated:
-    st.title("🧬 SciFlow — Мониторинг научпопа")
+    st.title("🧬 SciFlow — Последние новости науки")
     pw = st.text_input("Введите пароль:", type="password")
     if st.button("Войти"):
         if pw == PASSWORD:
@@ -147,7 +147,7 @@ def load_news():
     }
 
 # ====================== ИНТЕРФЕЙС ======================
-st.title("🧬 SciFlow — Мониторинг научпопа")
+st.title("🧬 SciFlow — Последние новости науки")
 st.caption("Простая облачная версия")
 
 if st.button("🔄 Обновить новости", type="primary"):
@@ -158,7 +158,7 @@ if st.button("🔄 Обновить новости", type="primary"):
 
 data = load_news()
 
-tab1, tab2 = st.tabs(["🌍 Global Science", "🇷🇺 Российский научпоп"])
+tab1, tab2 = st.tabs(["🌍 Global Science", "🇷🇺 Russian Science"])
 
 with tab1:
     for source, items in data["en"].items():
@@ -172,4 +172,4 @@ with tab2:
             for item in items:
                 st.markdown(f"[{item['title']}]({item['link']})")
 
-st.caption("SciFlow • Однофайловая версия")
+st.caption("SciFlow • © Denis Yakovlev, 2026")
