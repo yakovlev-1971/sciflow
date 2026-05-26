@@ -1,6 +1,7 @@
 import streamlit as st
 import feedparser
 import requests
+import time                    # ← Добавлено
 from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 
@@ -12,6 +13,7 @@ TELEGRAM_CHAT_ID = "133660500"
 PASSWORD = "1"
 
 MSK = timezone(timedelta(hours=3))
+AUTO_UPDATE_INTERVAL = 600     # 10 минут (можно изменить)
 
 SOURCES = {
     # ================= EN: Academic & Research =================
@@ -145,6 +147,18 @@ def load_news():
         "total": len(all_items),
         "timestamp": datetime.now(MSK).strftime("%d %b %Y, %H:%M MSK")
     }
+
+# ====================== АВТОМАТИЧЕСКИЕ ОПОВЕЩЕНИЯ ======================
+if "last_update" not in st.session_state:
+    st.session_state.last_update = 0
+
+# Автообновление и отправка в Telegram
+if time.time() - st.session_state.last_update > AUTO_UPDATE_INTERVAL:
+    data = load_news()
+    st.session_state.news_data = data
+    st.session_state.last_update = time.time()
+else:
+    data = st.session_state.get("news_data", load_news())
 
 # ====================== ИНТЕРФЕЙС ======================
 st.title("🧬 SciFlow — Последние новости науки")
