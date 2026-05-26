@@ -120,7 +120,7 @@ def load_news():
     for name, info in SOURCES.items():
         try:
             feed = feedparser.parse(info["url"])
-            for entry in feed.entries[:8]:
+            for entry in feed.entries[:5]:
                 all_items.append({
                     "title": entry.get("title", "").strip(),
                     "link": entry.get("link", ""),
@@ -164,7 +164,7 @@ else:
 st.title("🧬 SciFlow — Последние новости науки")
 st.caption("Простая облачная версия")
 
-if st.button("🔄 Обновить новости", type="primary"):
+if st.button("🔄 Обновить", type="primary"):
     with st.spinner("Загружаю новости..."):
         data = load_news()
     st.success(f"Обновлено • {data['timestamp']} • Новостей: {data['total']}")
