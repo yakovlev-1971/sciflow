@@ -2,6 +2,8 @@ import streamlit as st
 import feedparser
 import requests
 import time
+import json
+import os
 from datetime import datetime, timezone, timedelta
 from collections import defaultdict
 
@@ -14,6 +16,8 @@ PASSWORD = "1"
 
 MSK = timezone(timedelta(hours=3))
 AUTO_UPDATE_INTERVAL = 600
+
+CACHE_FILE = os.path.expanduser("~/sciflow_cache.json")
 
 SOURCES = {
     "Nature News": {"url": "https://www.nature.com/nature.rss", "lang": "en"},
@@ -85,7 +89,9 @@ if not st.session_state.authenticated:
     st.stop()
 
 # ====================== ФУНКЦИИ ======================
+
 def send_telegram(text: str):
+    """Отправляет сообщение в Telegram."""
     try:
         requests.post(
             f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
@@ -99,13 +105,30 @@ def send_telegram(text: str):
     except:
         pass
 
+
+def load_previous_titles():
+    """Загружает список предыдущих заголовков из кэша."""
+    try:
+        with open(CACHE_FILE, "r") as f:
+            return set(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return set()
+
+
+def save_current_titles(titles):
+    """Сохраняет текущие заголовки в кэш."""
+    with open(CACHE_FILE, "w") as f:
+        json.dump(list(titles), f)
+
+
 def load_news():
+    """Собирает все новости из RSS-источников."""
     all_items = []
     
     for name, info in SOURCES.items():
         try:
             feed = feedparser.parse(info["url"])
-            for entry in feed.entries[:5]:
+            for entry in feed.entries[:5]:  # По 5 новостей из каждого источника
                 all_items.append({
                     "title": entry.get("title", "").strip(),
                     "link": entry.get("link", ""),
@@ -115,13 +138,23 @@ def load_news():
         except:
             continue
 
-    if all_items:
-        titles_text = "\n".join([f"• {item['title']}" for item in all_items[:10]])
-        message = f"🧪 SciFlow Update\n\nСобрано новостей: {len(all_items)}\n\n{titles_text}"
-        if len(all_items) > 10:
-            message += f"\n\n... и ещё {len(all_items) - 10}"
-        send_telegram(message)
+    # Отправляем только СВЕЖИЕ новости в Telegram
+    current_titles = set(item["title"] for item in all_items)
+    previous_titles = load_previous_titles()
+    
+    if previous_titles:
+        new_titles = current_titles - previous_titles
+        if new_titles:
+            new_items = [item for item in all_items if item["title"] in new_titles]
+            titles_text = "\n".join([f"• {item['title']}" for item in new_items[:10]])
+            message = f"🧪 SciFlow Update\nСвежих новостей: {len(new_items)}\n\n{titles_text}"
+            if len(new_items) > 10:
+                message += f"\n\n... и ещё {len(new_items) - 10}"
+            send_telegram(message)
+    
+    save_current_titles(current_titles)
 
+    # Группировка по языкам и источникам
     en = defaultdict(list)
     ru = defaultdict(list)
     for item in all_items:
@@ -136,6 +169,7 @@ def load_news():
         "total": len(all_items),
         "timestamp": datetime.now(MSK).strftime("%d %b %Y, %H:%M MSK")
     }
+
 
 # ====================== АВТОМАТИЧЕСКИЕ ОПОВЕЩЕНИЯ ======================
 if "last_update" not in st.session_state:
@@ -164,13 +198,13 @@ tab1, tab2 = st.tabs(["🌍 Global Science", "🇷🇺 Russian Science"])
 
 with tab1:
     for source, items in data["en"].items():
-        with st.expander(f"**{source}** — {len(items)} новостей"):
+        with st.expander(f"**{source}**"):
             for item in items:
                 st.markdown(f"[{item['title']}]({item['link']})")
 
 with tab2:
     for source, items in data["ru"].items():
-        with st.expander(f"**{source}** — {len(items)} новостей"):
+        with st.expander(f"**{source}**"):
             for item in items:
                 st.markdown(f"[{item['title']}]({item['link']})")
 
