@@ -1,21 +1,15 @@
-import streamlit as st
 import feedparser
 import requests
-import time
 import json
 import os
+import time
 from datetime import datetime, timezone, timedelta
-from collections import defaultdict
 
 # ====================== НАСТРОЙКИ ======================
-st.set_page_config(page_title="SciFlow", layout="wide", page_icon="🧪")
-
 TELEGRAM_TOKEN = "8177168221:AAHT1oULEWi7_0-Wt9vMGQJVInZNEZq7PDA"
 TELEGRAM_CHAT_ID = "133660500"
-PASSWORD = "1"
-
 MSK = timezone(timedelta(hours=3))
-AUTO_UPDATE_INTERVAL = 600
+CHECK_INTERVAL = 900  # 15 минут
 
 CACHE_FILE = os.path.expanduser("~/sciflow_cache.json")
 
@@ -73,21 +67,6 @@ SOURCES = {
     "HSE Science": {"url": "https://www.hse.ru/rss/science", "lang": "ru"},
 }
 
-# ====================== АВТОРИЗАЦИЯ ======================
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-
-if not st.session_state.authenticated:
-    st.title("🧬 SciFlow — Последние новости науки")
-    pw = st.text_input("Введите пароль:", type="password")
-    if st.button("Войти"):
-        if pw == PASSWORD:
-            st.session_state.authenticated = True
-            st.rerun()
-        else:
-            st.error("Неверный пароль")
-    st.stop()
-
 # ====================== ФУНКЦИИ ======================
 
 def send_telegram(text: str):
@@ -102,8 +81,8 @@ def send_telegram(text: str):
             },
             timeout=10
         )
-    except:
-        pass
+    except Exception as e:
+        print(f"Ошибка отправки в Telegram: {e}")
 
 
 def load_previous_titles():
@@ -128,84 +107,58 @@ def load_news():
     for name, info in SOURCES.items():
         try:
             feed = feedparser.parse(info["url"])
-            for entry in feed.entries[:5]:  # По 5 новостей из каждого источника
+            for entry in feed.entries[:5]:
                 all_items.append({
                     "title": entry.get("title", "").strip(),
                     "link": entry.get("link", ""),
-                    "source": name,
-                    "lang": info["lang"]
+                    "source": name
                 })
         except:
             continue
 
-    # Отправляем только СВЕЖИЕ новости в Telegram
+    return all_items
+
+
+def check_and_notify():
+    """Проверяет новости и отправляет уведомления о новых."""
+    print(f"[{datetime.now(MSK).strftime('%H:%M')}] Проверяю новости...")
+    
+    all_items = load_news()
     current_titles = set(item["title"] for item in all_items)
     previous_titles = load_previous_titles()
     
-    if previous_titles:
-        new_titles = current_titles - previous_titles
-        if new_titles:
-            new_items = [item for item in all_items if item["title"] in new_titles]
-            titles_text = "\n".join([f"• {item['title']}" for item in new_items[:10]])
-            message = f"🧪 SciFlow Update\nСвежих новостей: {len(new_items)}\n\n{titles_text}"
-            if len(new_items) > 10:
-                message += f"\n\n... и ещё {len(new_items) - 10}"
-            send_telegram(message)
+    if not previous_titles:
+        save_current_titles(current_titles)
+        print(f"  Первый запуск. Сохранено {len(current_titles)} заголовков.")
+        return
+    
+    new_titles = current_titles - previous_titles
+    
+    if new_titles:
+        new_items = [item for item in all_items if item["title"] in new_titles]
+        titles_text = "\n".join([f"• {item['title']}" for item in new_items[:10]])
+        message = f"🧪 SciFlow Update\nСвежих новостей: {len(new_items)}\n\n{titles_text}"
+        if len(new_items) > 10:
+            message += f"\n\n... и ещё {len(new_items) - 10}"
+        send_telegram(message)
+        print(f"  Отправлено {len(new_items)} новых новостей.")
+    else:
+        print("  Новых новостей нет.")
     
     save_current_titles(current_titles)
 
-    # Группировка по языкам и источникам
-    en = defaultdict(list)
-    ru = defaultdict(list)
-    for item in all_items:
-        if item["lang"] == "ru":
-            ru[item["source"]].append(item)
-        else:
-            en[item["source"]].append(item)
 
-    return {
-        "en": dict(en),
-        "ru": dict(ru),
-        "total": len(all_items),
-        "timestamp": datetime.now(MSK).strftime("%d %b %Y, %H:%M MSK")
-    }
+# ====================== ГЛАВНЫЙ ЦИКЛ ======================
 
-
-# ====================== АВТОМАТИЧЕСКИЕ ОПОВЕЩЕНИЯ ======================
-if "last_update" not in st.session_state:
-    st.session_state.last_update = 0
-
-if time.time() - st.session_state.last_update > AUTO_UPDATE_INTERVAL:
-    data = load_news()
-    st.session_state.news_data = data
-    st.session_state.last_update = time.time()
-else:
-    data = st.session_state.get("news_data", load_news())
-
-# ====================== ИНТЕРФЕЙС ======================
-st.title("🧬 SciFlow — Последние новости науки")
-st.caption("Простая облачная версия")
-
-if st.button("🔄 Обновить", type="primary"):
-    with st.spinner("Загружаю новости..."):
-        data = load_news()
-    st.success(f"Обновлено • {data['timestamp']} • Новостей: {data['total']}")
-    st.rerun()
-
-data = load_news()
-
-tab1, tab2 = st.tabs(["🌍 Global Science", "🇷🇺 Russian Science"])
-
-with tab1:
-    for source, items in data["en"].items():
-        with st.expander(f"**{source}**"):
-            for item in items:
-                st.markdown(f"[{item['title']}]({item['link']})")
-
-with tab2:
-    for source, items in data["ru"].items():
-        with st.expander(f"**{source}**"):
-            for item in items:
-                st.markdown(f"[{item['title']}]({item['link']})")
-
-st.caption("SciFlow • © Denis Yakovlev, 2026")
+if __name__ == "__main__":
+    print("🚀 SciFlow Bot запущен.")
+    send_telegram("🧪 SciFlow Bot запущен. Буду присылать свежие новости каждые 15 минут.")
+    
+    while True:
+        try:
+            check_and_notify()
+        except Exception as e:
+            print(f"Ошибка в главном цикле: {e}")
+            send_telegram(f"⚠️ SciFlow: ошибка при проверке новостей.\n{e}")
+        
+        time.sleep(CHECK_INTERVAL)
