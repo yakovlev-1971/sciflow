@@ -7,7 +7,6 @@ from collections import defaultdict
 # ====================== НАСТРОЙКИ ======================
 st.set_page_config(page_title="SciFlow", layout="wide", page_icon="🧪")
 
-PASSWORD = "1"
 MSK = timezone(timedelta(hours=3))
 AUTO_UPDATE_INTERVAL = 600
 
@@ -65,21 +64,6 @@ SOURCES = {
     "MIPT News": {"url": "https://mipt.ru/feed/", "lang": "ru", "enabled": False},
     "HSE Science": {"url": "https://www.hse.ru/rss/science", "lang": "ru", "enabled": False},
 }
-
-# ====================== АВТОРИЗАЦИЯ ======================
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-
-if not st.session_state.authenticated:
-    st.title("🧬 SciFlow — Последние новости науки")
-    pw = st.text_input("Введите пароль:", type="password")
-    if st.button("Войти"):
-        if pw == PASSWORD:
-            st.session_state.authenticated = True
-            st.rerun()
-        else:
-            st.error("Неверный пароль")
-    st.stop()
 
 # ====================== ФУНКЦИИ ======================
 
